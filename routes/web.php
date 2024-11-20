@@ -1,6 +1,8 @@
 <?php
 
+use App\Http\Controllers\AdminController;
 use App\Http\Controllers\TripController;
+use App\Http\Controllers\VisitaController;
 use Illuminate\Support\Facades\Route;
 use Laravel\Socialite\Facades\Socialite;
 use App\Models\User;
@@ -116,3 +118,11 @@ Route::get('logout', function () {
     Auth::logout();
     return redirect(route('home'));
 })->name('logout');
+
+//rutas dashboard
+Route::middleware(['auth', 'admin'])->prefix('admin')->group(function () {
+    Route::get('/', [AdminController::class, 'index'])->name('admin.dashboard');
+});
+
+Route::get('/admin/grafico',[VisitaController::class,'index']);
+
