@@ -29,7 +29,7 @@
         @else
         <div class="content">
             @foreach ($trips as $info )
-            <div class="card my-5" @if ($info->available_seats == $info->occupied_seats) style="background-color: #fff4d6" @endif>
+            <div class="card my-5"  >
                 <div class="card-content">
                     <div class="media">
                     <div class="media-left">
@@ -41,13 +41,20 @@
                     </div>
                     <div class="media-content columns">
                         <div class="column">
+                            @php
+                                $horaInicio = \Carbon\Carbon::parse($info->departure_date.' '.$info->departure_time);
+                                $horaActual = \Carbon\Carbon::now();
+                                $horasDiferencia = $horaInicio->diffInHours($horaActual);
+                            @endphp  
                         <p class="title is-4">{{ $info->driver->name }}</p>
-                        <span>Calificación:</span>
+                        <span>Viajé como: {{ $info->is_driver ? 'Conductor':'Pasajero' }}</span>
                         <p class="subtitle is-6">
                             <span class="icon has-text-warning">
-                                <i class="fa-solid fa-star"></i>
+                                <i class="fa-solid fa-car"></i>
                             </span>
-                            {{ $info->driver->rating }}
+                            Marca: {{ $info->car_brand }} |
+                            Patente: {{ $info->car_plate }} |
+                            Color: {{ $info->car_color }}
                             <br>
                         </p>    
                         </div> 
@@ -58,11 +65,11 @@
                                 <span class="icon has-text-success">
                                     <i class="fa-solid fa-location"></i>
                                 </span>
-                                {{ "ggg" }} ->
+                                {{ $info->departureCity->name }} ->
                                 <span class="icon has-text-success">
                                     <i class="fa-solid fa-location"></i>
                                 </span>
-                                {{ "ff" }}
+                                {{ $info->arrivalCity->name }}
                             </p> 
                             
                             <p class="subtitle is-6">                          
@@ -93,25 +100,17 @@
                             <p class="subtitle is-6">                          
                                 <div class="py-2 card px-2">
                                     <div class="icon-text">
-                                        @for ($inicio=0; $inicio < $info->available_seats - $info->occupied_seats;$inicio++)
-                                            <span class="icon has-text-success" title="Disponible">
-                                                <i class="fa-solid fa-chair"></i>
-                                            </span>                                       
-                                        @endfor
-                                        @for ($inicio=0; $inicio < $info->behind_available_seats;$inicio++)
-                                            <span class="icon has-text-info" title="Libre">
-                                                <i class="fa-solid fa-chair"></i>
-                                            </span>                                      
-                                        @endfor
-                                        @for ($inicio=0; $inicio < $info->occupied_seats;$inicio++)
-                                            <span class="icon has-text-danger" title="Ocupado">
-                                                <i class="fa-solid fa-chair"></i>
-                                            </span>                                      
-                                        @endfor 
-                                         {{($info-> available_seats - $info->occupied_seats)}} Disponibles                                                                                                                              
+                                    <span style="color: {{ $info->active == 0 ? 'red':(date($info->departure_date) < $date ? 'gray':'') }}">{{ $info->active == 0 ? 'Viaje cancelado':(date($info->departure_date) >= $date && $info->departure_time > date('H:i:s') ? '':'Viaje Finalizado')}}</span>
+                                                                                                                                                                
                                     </div>
+                                    @if ($info->is_driver && $info->active && $horasDiferencia > 0 && $info->departure_date >= date('Y-m-d') && $info->departure_time >= date('<H-i-s'))
+                                    <button onclick="cancelTrip('{{$info->id}}', '{{$info->departureCity->name}}', '{{$info->arrivalCity->name}}')" style="border-radius: 50px;" class="button is-danger is-fullwidth is-medium">Cancelar viaje (faltan {{$horasDiferencia}} horas)</button>
+                        
+                                    @endif 
                                 </div>
-                            </p> 
+                            </p>
+                            
+
                         </div>
                     </div>
                     </div>
@@ -134,11 +133,18 @@
                         <button disabled style="border-radius: 50px;" class="button is-light is-fullwidth is-medium">Cupos agotados</button>
 
                         @endif
+                        @if (auth()->user()->id == $info->driver->id)
+                        <button onclick="window.location.href='/history/{{ $info->id }}'" style="border-radius: 50px;" class="button is-warning is-fullwidth is-medium">{{ $info->passenger_count }} pasajeros - ver</button>
+                        
+                        @endif
+                        
+
 
                     
                     </footer>
                 </div>
                 </div>
+            @include('trip-details')    
             @endforeach
         </div>
         @endif
@@ -147,6 +153,59 @@
 </div>
 
 
+<script>
+    function cancelTrip(id, from, to){
+        Swal.fire({
+            title:"Confirmar",
+            text:"Quieres cancelar el viaje" +from+ ">" +to+ "?",
+            icon:"warning",
+            showCancelButton:True,
+            confirmButtonText:"Si, cancelar viaje"
+        }).then((result) => {
+            if(result.isConfirmed){
+                let token = $('meta[name="csrf-token"]').attr('content');
+                $.ajax({
+                    url: "{{ route('cancelTrip') }}",
+                    type: "POST",
+                    dataType: "json",
+                    data:{
+                        '_token':token,
+                        'id':id,
+                    },
+                    success: function (respuesta) {
+                        if(respuesta.error){
 
+                            Swal.fire({
+                            position:'center-center',
+                            title: respuesta.message,
+                            icon: 'error',
+                            ShowConfirmButton: true,
+                            timer:3500 
+                            });
+
+                        }else{
+
+                            Swal.fire({
+                                position:'center-center',
+                                title: respuesta.message,
+                                icon: 'success',
+                                ShowConfirmButton: true,
+                                timer:3500 
+                            }).then((result)=>{
+                                if(result.isConfirmed || result.dismiss == Swal.DismissReason.timer){
+                                    location.reload();
+                                }
+                            });
+
+                        }                    
+                    },
+                    error: function (err) {
+                    console.error("error", err);
+                    }
+                });
+            }
+        })
+    }
+</script>
       
 @include('footer')

@@ -6,6 +6,7 @@ use App\Models\City;
 use App\Models\Reservation;
 use App\Models\Trip;
 use App\Models\User;
+use GrahamCampbell\ResultType\Success;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -165,4 +166,67 @@ class TripController extends Controller
 
         return view('history', compact('trips','date'));
     }
+
+    public function passengers($id){
+
+        $sessionUserId = Auth()->user()->id;
+        //obtener los viajes donde ha conducido el usuario
+        $trip = Trip::with(['departureCity','arrivalCity','driver'])
+            ->orWhere('id', $id)
+            ->get();
+
+
+        $reservationsForTrips = Reservation::where('trip_id',$id)->with('passenger')->get();
+
+        $passengerDataPerTrip = $reservationsForTrips->groupBy('trip_id')->map(function($reservations){
+            return[
+                'passenger_count' => $reservations->count(),
+                'passengers' => $reservations->map(function($reservation){
+                    return[
+                        'passenger' => $reservation->passenger,
+                        'seats' => $reservation->seats,
+                        'comment' => $reservation->comment,
+                        'confirmed' => $reservation->confirmed,
+                        'phone' => $reservation->phone,
+                        'reservationId' => $reservation->id,
+                    ];
+
+                })
+                
+            ];
+        });
+
+        $trip->each(function($item)use($passengerDataPerTrip){
+            $tripData = $passengerDataPerTrip->get($item->id,['passenger_count'=>0,'passengers'=>[]]);
+            $item->passenger_count = $tripData['passenger_count'];
+            $item->passengers = $tripData['passengers'];            
+        });
+
+        
+
+        $date = $trip[0]->departure_date;
+        $from = $trip[0]->departureCity->name;
+        $to = $trip[0]->arrivalCity->name;
+
+        return view('passengers', compact('trip','date','from','to'));
+    }
+
+    public function cancelTrip(Request $request){
+        $idTrip = $request->input("id");
+        Trip::where('id',$idTrip)
+        ->update([
+            'active'=> 0
+
+        ]);
+        $reservations = Reservation::where('trip_id',$idTrip)->with('passenger')->get();
+        $emails = $reservations->pluck('passenger.email')->toArray();
+        Reservation::where('trip_id',$idTrip)->delete();
+        return response()->json([
+            'error'=>false,
+            'mensaje'=>"Viaje cancelado con éxito",
+            'icon'=>"success"
+        ], 200);
+    }
+        
 }
+

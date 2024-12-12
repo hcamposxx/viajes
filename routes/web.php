@@ -3,12 +3,14 @@
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\TripController;
 use App\Http\Controllers\VisitaController;
+use App\Mail\NewTripEmail;
 use Illuminate\Support\Facades\Route;
 use Laravel\Socialite\Facades\Socialite;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 
 /*
 |--------------------------------------------------------------------------
@@ -32,6 +34,24 @@ Route::get('login', function () {
 Route::get('register', function () {
     return view('register');
 })->name('register');
+
+Route::get('/verify/{id}', function ($id) {
+    /**aqui se verifica la cuenta */
+    try{
+        $affected = User::where('id',$id)->update(['verified'=>true]);
+        if($affected>0){
+            return redirect(route('home'))->with('mensaje','Correo verificado');
+        }else{
+
+            return redirect(route('home'))->withErrors('mensaje','La cuenta no se pudo verificar');
+
+        }
+
+    }catch(Exception $ex){
+        return redirect(route('home'))->withErrors('mensaje','La cuenta no se pudo verificar, intente nuevamente');
+
+    }
+});
 
 Route::get('login-google', function () {
     return Socialite::driver('google')->redirect();
@@ -57,6 +77,15 @@ Route::get('google-callback', function () {
                 'external_id' => $user->id,
                 'external_auth' =>'google'
             ]);
+
+            try{
+
+                Mail::to($user->email)->send(new NewTripEmail($user->name, $exists->id, 'Confirma tu email'));
+                
+    
+            }catch(Exception $ex){
+    
+            }
     }
 
     //autenticacion de usuario y bienvenida al home
@@ -113,6 +142,7 @@ Route::get('offer-seats', function () {
 
 
 Route::get('history',[TripController::class,'history'])->name('history');
+Route::get('history/{id}',[TripController::class,'passengers']);
 
 Route::get('logout', function () {
     Auth::logout();

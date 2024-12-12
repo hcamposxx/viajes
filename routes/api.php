@@ -25,6 +25,7 @@ Route::prefix('ajax')->group( function () {
     //reservation usa POST!!!!
     Route::post('reservations',[ReservationController::class,'store'])->name('save-reservation');
     Route::post('trips',[TripController::class,'store'])->name('save-trip');
+    Route::post('trips/cancel',[TripController::class,'cancelTrip'])->name('cancelTrip');
     Route::get('getDestinations/{id}',[CityController::class,'getDestinations'])->name('city.getDestinations');
     Route::get('getDestinationsAjax/{name}',[CityController::class,'getDestinationsAjax']);
 });

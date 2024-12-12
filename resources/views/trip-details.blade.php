@@ -3,7 +3,7 @@
       <div class="modal__container" role="dialog" aria-modal="true" aria-labelledby="modal-1-title">
         <header class="modal__header">
           <h2 class="modal__title" id="modal-1-title">
-            {{ $from }} -> {{ $to }}
+            {{ $from ?? "solo"}} -> {{ $to ?? "lectura"}}
             
           </h2>
         
@@ -53,6 +53,7 @@
                         <code id="txt_details"></code>
                     </td>
                 </tr>
+                @if ((date($info->departure_date) <= $date && $info->departure_time < date('H:i:s')))
 
                 <tr>  
                     <th colspan="2">Separar asientos </th>
@@ -95,11 +96,10 @@
                       </div>
                     </td>
                 </tr>
+                @endif
 
             </table>
-            <p>
-                {{ $from }} -> {{ $to }}
-            </p>
+            
           <p>
             <form action="">
                 <input type="hidden" id="modal_id_trip" value="-1">
@@ -107,13 +107,18 @@
           </p>
         </main>
         <footer class="modal__footer">
+            <button class="modal__btn" data-micromodal-close aria-label="Close this dialog window">Cerrar</button>
+            @if ((date($info->departure_date) <= $date && $info->departure_time < date('H:i:s')))
+            
+            
             @auth
             <button onclick="sendReservation()" class="modal__btn modal__btn-primary">Enviar solicitud</button>
             @else
-            <a href="{{ route('login') }}" class="modal__btn modal__btn-primary">Ingresar</a>
+            <a href="{{ route('login')}}" class="modal__btn modal__btn-primary">Enviar solicitud</a>
             @endauth
+            @endif
           
-          <button class="modal__btn" data-micromodal-close aria-label="Close this dialog window">Nope</button>
+          
         </footer>
       </div>
     </div>
